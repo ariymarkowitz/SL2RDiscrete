@@ -29,35 +29,33 @@ end function;
 ord_point := function(z, place)
   x := z[1]; y := z[2];
   if IsZero(x) then
-    return < comp_alg(y, 1, place) gt 0 select 1 else 0, Infinity() >;
+    return < comp_alg(y, 1, place) gt 0 select 2 else 0, 0 >;
   end if;
-  return < sign_alg(x, place) lt 0 select 1 else 0, (x^2 + y^2 - 1)/x >;
+  return < sign_alg(x, place) lt 0 select 3 else 1, (x^2 + y^2 - 1)/x >;
 end function;
 
 /* Compare the tuple corresponding to two complex points. */
 comp_ord := function(a, b, place)
   if a[1] ne b[1] then return a[1] - b[1]; end if;
-  if a[2] cmpeq b[2] then return 0; end if;
-  if a[2] cmpeq Infinity() then return -1; end if;
   return comp_alg(a[2], b[2], place);
 end function;
 
 /* Get the symmetric sequence of generators and inverses */
-sym_gens := function(gens)
-  gens_pm := gens cat [x^-1 : x in gens];
-  if Nresults() eq 1 then return gens_pm; end if;
-  S := Sym(#gens_pm);
+symmetrize := function(gens)
+  gens_sym := gens cat [x^-1 : x in gens];
+  if Nresults() eq 1 then return gens_sym; end if;
+  S := Sym(#gens_sym);
   invert_perm := S!([#gens + 1 .. 2*#gens] cat [1 .. #gens]);
-  return gens_pm, invert_perm;
+  return gens_sym, invert_perm;
 end function;
 
 /* Return the permutation sending each edge type to the next edge type in its rightmost path. */
-bounding_path_perm := function(gens_pm, invert_perm, place)
+bounding_path_perm := function(gens_sym, invert_perm, place)
   S := Parent(invert_perm);
   bounding_paths := Id(S);
-  ordinals := [ord_point(to_point(g), place) : g in gens_pm];
+  ordinals := [ord_point(to_point(g), place) : g in gens_sym];
   Sort(~ordinals, func<a, b | comp_ord(a, b, place)>, ~bounding_paths);
-  rotate := S!([2..#gens_pm] cat [1]);
+  rotate := S!([2..#gens_sym] cat [1]);
   return rotate^bounding_paths * invert_perm;
 end function;
 
@@ -89,8 +87,8 @@ abelian_is_cyclic := function(g, h)
     H, f3 := Ab/N;
     if NumberOfGenerators(H) ne 1 then return false, _, _; end if;
 
-    proj := f1*f2*f3
-    return true, Eltseq(proj(A))[1], Eltseq(proj(B))[1];
+    proj := f1*f2*f3;
+    return true, Eltseq(proj(g))[1], Eltseq(proj(h))[1];
   else
     // G is unipotent, so isomorphic to the additive group via the top-right entry of the upper
     // triangularisation.
@@ -100,7 +98,8 @@ abelian_is_cyclic := function(g, h)
     r := (G2.1)[1,2]/(G2.2)[1,2];
     Q := RationalField();
     if r in Q then
-      return true, Numerator(s), Denominator(s);
+      r := Q!r; // Just in case
+      return true, Numerator(r), Denominator(r);
     else
       return false, _, _;
     end if;
@@ -120,7 +119,7 @@ end function;
 
 /* Evaluate a word (as a list of ids) with a generating set. */
 evaluate_word := function(word_ids, seq)
- return &*Reverse([seq[i] : i in word_ids]);
+ return &*[seq[i] : i in word_ids];
 end function;
 
 declare type GrpSL2Gen;
@@ -134,7 +133,6 @@ declare attributes GrpSL2Gen:
    * "un" - Unknown type (only used for intermediate reduction steps)
    * "df" - Discrete and free
    * "dc" - Discrete with co-compact action
-   * "sm" - Contains a subgroup with small action
    * "ab" - Contains an indiscrete abelian subgroup
    * "el" - Contains an elliptic element
    * "ne" - Contains -1
@@ -155,26 +153,33 @@ declare attributes GrpSL2Gen:
   asFPGroup, // Finite presetation
   isometry; // Isometry to finitely presented group
 
-intrinsic SL2Gens(gens::SeqEnum[AlgMatElt[FldNum]], place::PlcNumElt, psl := false) -> GrpSL2Gen
-{ Create a generating set for a subgroup of SL(2, R) }
+intrinsic Print(gen::GrpSL2Gen)
+{ Print the generating set. }
+list := &*[Sprint(x) * (i lt #gen`seq select "\n\n" else "") : i -> x in gen`seq];
+printf "Generators of subgroup of %oSL(2,R):\n%o", gen`psl select "P" else "", list;
+end intrinsic;
+
+intrinsic SL2Gens(seq::SeqEnum[AlgMatElt[FldNum]], place::PlcNumElt : psl := false) -> GrpSL2Gen
+{ Create a generating set for a subgroup of SL(2, R). }
   gen := New(GrpSL2Gen);
   require IsReal(place): "Place must be real";
-  require Degree(Universe(genseq)) eq 2: "Matrix algebra must be degree 2";
-  require &and[Determinant(gen) eq 1 : gen in genseq]: "Matrices must have determinant 1";
-  require BaseRing(Universe(genseq)) eq NumberField(place): "Generators and place must have the same base field";
-  gen`matalg := Universe(genseq);
-  gen`field := BaseRing(gens`matalg);
+  require Degree(Universe(seq)) eq 2: "Matrix algebra must be degree 2";
+  require &and[Determinant(g) eq 1 : g in seq]: "Matrices must have determinant 1";
+  require BaseRing(Universe(seq)) eq NumberField(place): "Generators and place must have the same base field";
+  gen`seq := seq;
+  gen`matalg := Universe(seq);
+  gen`field := BaseRing(gen`matalg);
   gen`place := place;
   gen`psl := psl;
 
   gen`type := "un";
-  gen`witness := gens;
-  gen`witness_word := Generators(FreeGroup(#genseq));
+  gen`witness := seq;
+  gen`witness_word := Setseq(Generators(FreeGroup(#seq)));
   return gen;
 end intrinsic;
 
 // Apply one step of the reduction algorithm.
-reduce_step := procedure(~gen)
+reduce_step := procedure(gen)
   if gen`type ne "un" then return; end if;
 
   // Remove duplicate or elliptic generators
@@ -183,7 +188,7 @@ reduce_step := procedure(~gen)
       Remove(~gen`witness, i);
       Remove(~gen`witness_word, i);
       return;
-    elif is_elliptic(x, place) then
+    elif is_elliptic(g, gen`place) then
       gen`type := "el";
       gen`witness := g;
       gen`witness_word := gen`witness_word[i];
@@ -192,19 +197,19 @@ reduce_step := procedure(~gen)
   end for;
 
   // A single non-elliptic element generates a free group.
-  if #gens le 1 then
+  if #gen`witness le 1 then
     gen`type := "df";
     gen`asFPGroup := FreeGroup(#gen`witness_word);
   end if;
 
   // Compare the 2 generators of smallest length.
   sorted_ids := Sort([1..#gen`witness], func<i, j | comp_alg(length_proxy(gen`witness[i]), length_proxy(gen`witness[j]), gen`place)>);
-  i := sorted_ids[1];
-  j := sorted_ids[2];
-  a := gen`witness[i];
-  b := gen`witness[j];
-  wa := gen`witness_word[i];
-  wb := gen`witness_word[j];
+  a_id := sorted_ids[1];
+  b_id := sorted_ids[2];
+  a := gen`witness[a_id];
+  b := gen`witness[b_id];
+  wa := gen`witness_word[a_id];
+  wb := gen`witness_word[b_id];
 
   // Reduce generators if an abelian pair is found
   if a*b eq b*a then
@@ -213,6 +218,7 @@ reduce_step := procedure(~gen)
       gen`type := "ab";
       gen`witness := [a, b];
       gen`witness_word := [wa, wb];
+      return;
     end if;
 
     // Check whether a and b generate -1
@@ -220,58 +226,66 @@ reduce_step := procedure(~gen)
       gen`type := "ne";
       gen`witness := -One(gen`matalg);
       gen`witness_word := wa^n * wb^-m;
+      return;
     end if;
 
     c, x, y := ExtendedGreatestCommonDivisor(m, n);
     assert c eq 1;
-    gen`witness := [x : k -> x in gen`witness | k notin [i, j]] cat [a^x * b^y];
-    gen`witness_word := [x : k -> x in gen`witness_word | k notin [i, j]] cat [gen`witness_word[i]^x * gen`witness_word[j]^y];
+    gen`witness := [x : k -> x in gen`witness | k notin [a_id, b_id]] cat [a^x * b^y];
+    gen`witness_word := [x : k -> x in gen`witness_word | k notin [a_id, b_id]] cat [gen`witness_word[a_id]^x * gen`witness_word[b_id]^y];
     return;
   end if;
 
-  gens_pm, invert_perm := sym_gens(gen`witness);
-  words_pm := sym_gens(gen`witness_word);
-  short_word_ids := [word : word in short_words(gens_pm, invert_perm, gen`place) | #word gt 1];
+  gens_sym, invert_perm := symmetrize(gen`witness);
+  words_sym := symmetrize(gen`witness_word);
+  short_word_ids := [word : word in short_words(gens_sym, invert_perm, gen`place) | #word gt 1];
 
   b_len := length_proxy(b);
   max_reduction := 0; // The replacement that reduces the length the most
   replacement := false;
   for i -> word in short_word_ids do
-    elt := evaluate_word(i, gens_pm);
-    if is_elliptic(elt, place) then return 2, elt; end if;
+    elt := evaluate_word(word, gens_sym);
+    if is_elliptic(elt, gen`place) then
+      gen`type := "el";
+      gen`witness := elt;
+      gen`witness_word := evaluate_word(word, words_sym);
+      return;
+    end if;
     if not IsOne(elt) and comp_alg(b_len + length_proxy(elt), 1, gen`place) lt 0 then
       // If Phi(b)*Phi(elt)<1, Phi(a)*Phi(elt)<1.
       // Since a and b do not commute, either b and elt do not commute or
       // a and elt do not commute.
-      bad_id := a*elt eq elt*a select j else i;
+      bad_id := a*elt in {elt*a, -elt*a} select b_id else a_id;
+
       gen`type := "sm";
       gen`witness := [gen`witness[bad_id], elt];
-      gen`witness_word := [gen`witness_word[bad_id], evaluate_word(short_word_ids[word_id], words_pm)];
+      gen`witness_word := [gen`witness_word[bad_id], evaluate_word(short_word_ids[bad_id], words_sym)];
       return;
     end if;
     // Find a replacement candidate.
     for term_id in word do
-      if term_id^invert_perm notin word then continue; end if;
-      reduction := length_proxy(elt) - length_proxy(term);
+      if term_id^invert_perm in word then continue; end if;
+      reduction := length_proxy(gens_sym[term_id]) - length_proxy(elt);
       if comp_alg(reduction, max_reduction, gen`place) gt 0 then
         max_reduction := reduction;
-        replacement := <i, Min(replacement[1], replacement[1]^invert_perm)>;
+        replacement := <word, Min(term_id, term_id^invert_perm)>;
       end if;
     end for;
   end for;
 
   if max_reduction eq 0 then
     // The group is discrete and torsion-free.
-    F := FreeGroup(#gens`witness);
-    perm := bounding_path_perm(gens_pm, invert_perm, gen`place);
+    F := FreeGroup(#gen`witness);
+    perm := bounding_path_perm(gens_sym, invert_perm, gen`place);
     decomp := CycleDecomposition(perm);
-    if #decomp eq 1:
+    if #decomp eq 1 then
       relation := decomp[1];
-      x := evaluate_word(relation, sym_gens(F));
-      if (IsOne(x) or (g`psl and IsOne(-x))) then
+      x := evaluate_word(relation, gens_sym);
+      if (IsOne(x) or (gen`psl and IsOne(-x))) then
         // The group has cocompact action.
         gen`type := "dc";
-        gen`asFPGroup := quo<F | evaluate_word(relation, sym_gens(F))>;
+        gen`asFPGroup := quo<F | evaluate_word(relation, symmetrize(Setseq(Generators(F))))>;
+        return;
       end if;
     end if;
     // The group is free.
@@ -280,15 +294,33 @@ reduce_step := procedure(~gen)
     return;
   end if;
 
-  word_id := replacement[0];
-  term_id := replacement[1];
-  gens`witness[term_id] := short_elts[word_id];
-  gens`witness_word[term_id] := evaluate_word(short_word_ids[word_id], words_pm);
-end function;
+  word := replacement[1];
+  term_id := replacement[2];
+  gen`witness[term_id] := evaluate_word(word, gens_sym);
+  gen`witness_word[term_id] := evaluate_word(word, words_sym);
+end procedure;
 
-intrinsic RecogniseDiscreteTorsionFree(~gens: GrpSL2Gen)
+intrinsic RecognizeDiscreteTorsionFree(gen: GrpSL2Gen)
 { Decide a generating set of SL(2, R) is discrete and torsion-free }
   repeat
-    reduce_step(gens);
-  until gens`type ne "un";
+    reduce_step(gen);
+  until gen`type ne "un";
+end intrinsic;
+
+intrinsic IsDiscreteTorsionFree(gen: GrpSL2Gen) -> BoolElt
+{ Return true if the generating set is discrete and torsion-free. }
+  error if gen`type eq "un", "The generating set must be prepared using `RecognizeDiscreteTorsionFree`";
+  return gen`type eq "dc" or gen`type eq "df";
+end intrinsic;
+
+intrinsic IsDiscreteFree(gen: GrpSL2Gen) -> BoolElt
+{ Return true if the generating set is discrete and free. }
+  error if gen`type eq "un", "The group type is unknown; prepare it using `RecognizeDiscreteTorsionFree`";
+  return gen`type eq "df";
+end intrinsic;
+
+intrinsic IsDiscreteCocompact(gen: GrpSL2Gen) -> BoolElt
+{ Return true if the generating set is discrete with cocompact action. }
+  error if gen`type eq "un", "The group type is unknown; prepare it using `RecognizeDiscreteTorsionFree`";
+  return gen`type eq "dc";
 end intrinsic;

@@ -10,17 +10,25 @@ assert is_elliptic(M![0, w, -(1/w), 0], P);
 
 A := M![1, w, 0, 1];
 B := M![1, 3/5*w, 0, 1];
-b, C := abelian_is_discrete(A, B, P);
+b, m, n := abelian_is_cyclic(A, B);
 assert b;
-assert Eltseq(C) eq [1, 1/5, 0, 1];
+_, x, y := ExtendedGreatestCommonDivisor(m, n);
+assert Eltseq(A^x * B^y) eq [1, 1/5*w, 0, 1];
+
+A := M![w^4, 0, 0, w^-4];
+B := M![w^6, 0, 0, w^-6];
+b, m, n := abelian_is_cyclic(A, B);
+assert b;
+_, x, y := ExtendedGreatestCommonDivisor(m, n);
+assert Eltseq(A^x * B^y) eq [w^2, 0, 0, w^-2];
 
 A := M![1, w, 0, 1];
 B := M![1, 1, 0, 1];
-assert not abelian_is_discrete(A, B, P);
+assert not abelian_is_cyclic(A, B);
 
 A := M![1, 2, 0, 1];
 B := M![1, 0, 2, 1];
-Xpm, inv := get_gens_pm([A, B]);
+Xpm, inv := symmetrize([A, B]);
 assert Xpm eq [A, B, A^-1, B^-1];
 assert Eltseq(inv) eq [3, 4, 1, 2];
 assert Eltseq(bounding_path_perm(Xpm, inv, P)) eq [4, 2, 3, 1];
@@ -31,20 +39,22 @@ reduce_step(gen);
 assert gen`type eq "df" and gen`witness eq [A, B];
 
 gen := SL2Gens([A, B*A^-1], P);
-reduce_step(~gen);
-assert gen`type eq "un" and gen`witness in {[A, B], [A, B^-1]};
+reduce_step(gen);
+assert gen`type eq "un" and gen`witness eq [A, B];
 
 gen := SL2Gens([B*A*B^-1, B], P);
-reduce_step(~gen);
-assert gen`type eq "un" and gen`witness in {[A*B^-1, B], [B*A, B]};
+reduce_step(gen);
+assert gen`type eq "un" and gen`witness eq [A^-1, B];
+F := Universe(gen`witness_word);
+assert gen`witness_word eq [F.2^-1 * F.1^-1 * F.2, F.2];
 
 gen := SL2Gens([A*B^2, B^-2*A^-1*B], P);
-RecogniseDiscreteTorsionFree(~gen);
+RecognizeDiscreteTorsionFree(gen);
 assert gen`type eq "df" and gen`witness in {[A, B], [A^-1, B], [A, B^-1], [A^-1, B^-1]};
 
 A := M![1, 1, 1, 2];
 B := M![2, 1, 1, 1];
-Xpm, inv := get_gens_pm([A, B]);
+Xpm, inv := symmetrize([A, B]);
 assert Xpm eq [A, B, A^-1, B^-1];
 assert Eltseq(inv) eq [3, 4, 1, 2];
 assert Eltseq(bounding_path_perm(Xpm, inv, P)) eq [4, 1, 2, 3];
@@ -55,25 +65,53 @@ reduce_step(gen);
 assert gen`type eq "df" and gen`witness eq [A, B];
 
 gen := SL2Gens([A, B*A^-1], P);
-reduce_step(~gen);
+reduce_step(gen);
 assert gen`type eq "un" and gen`witness in {[A, B], [A, B^-1]};
 
 gen := SL2Gens([B*A*B^-1, B], P);
-reduce_step(~gen);
-assert gen`type eq "un" and gen`witness in {[A*B^-1, B], [B*A, B]};
+reduce_step(gen);
+assert gen`type eq "un" and gen`witness eq [A, B];
+F := Universe(gen`witness_word);
+assert gen`witness_word eq [F.2^-1 * F.1^-1 * F.2, F.2];
 
 gen := SL2Gens([A*B^2, B^-2*A^-1*B], P);
-RecogniseDiscreteTorsionFree(~gen);
+RecognizeDiscreteTorsionFree(gen);
 assert gen`type eq "df" and gen`witness in {[A, B], [A^-1, B], [A, B^-1], [A^-1, B^-1]};
+assert IsDiscreteFree(gen);
 
 A := M![1, w, 0, 1];
 B := M![1, 1, 0, 1];
 gen := SL2Gens([A*B^2, B^-2*A^-1*B], P);
-RecogniseDiscreteTorsionFree(~gen);
+RecognizeDiscreteTorsionFree(gen);
 assert gen`type eq "ab";
+assert not IsDiscreteTorsionFree(gen);
 
 A := M![1, 2, -1, -1];
 B := M![1, 0, 2, 1];
 gen := SL2Gens([A*B^2, B^-2*A^-1*B], P);
-RecogniseDiscreteTorsionFree(~gen);
-assert type eq "el";
+RecognizeDiscreteTorsionFree(gen);
+assert gen`type eq "el";
+assert not IsDiscreteTorsionFree(gen);
+
+A := M![1, 2, 0, 1];
+B := M![2, 2, 0, 1/2];
+gen := SL2Gens([A*B^2, B^-2*A^-1*B], P);
+RecognizeDiscreteTorsionFree(gen);
+assert gen`type eq "sm";
+assert not IsDiscreteTorsionFree(gen);
+
+Q := Rationals();
+P<x> := PolynomialRing(Q);
+K<w> := NumberField(x^2 - 3);
+M := MatrixAlgebra(K, 2);
+P := RealPlaces(K)[1];
+
+A := M![2 - 2*w, 3, -3, 2+2*w];
+B := M![2, w, w, 2];
+C := M![2+w, 0, 0, 2-w];
+D := M![2, -3-2*w, 3-2*w, 2];
+gen := SL2Gens([A, B, C, D], P);
+RecognizeDiscreteTorsionFree(gen);
+assert gen`type eq "dc";
+G := gen`asFPGroup;
+assert Relations(F) := [ G.1 * G.4^-1 * G.2^-1 * G.1^-1 * G.2 * G.3^-1 * G.4 * G.3 = Id(G) ];
