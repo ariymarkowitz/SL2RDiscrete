@@ -114,4 +114,4 @@ gen := SL2Gens([A, B, C, D], P);
 RecognizeDiscreteTorsionFree(gen);
 assert gen`type eq "dc";
 G := gen`asFPGroup;
-assert Relations(F) := [ G.1 * G.4^-1 * G.2^-1 * G.1^-1 * G.2 * G.3^-1 * G.4 * G.3 = Id(G) ];
+assert Relations(G) := [ G.1 * G.4^-1 * G.2^-1 * G.1^-1 * G.2 * G.3^-1 * G.4 * G.3 = Id(G) ];
