@@ -164,7 +164,7 @@ declare attributes GrpSL2Gen:
   // These attributes are only defined if SL2Gen is determined to be discrete and torsion-free.
   FPgrp, // Finite presetation
   matgrp, // Matrix group (with reduced generating set)
-  isometry; // Isometry to finitely presented group
+  iso; // Isometry to finitely presented group
 
 intrinsic Print(gen::GrpSL2Gen)
 { Print the generating set. }
@@ -325,17 +325,18 @@ intrinsic RecognizeDiscreteTorsionFree(gen::GrpSL2Gen)
     reduce_step(gen);
   until gen`type ne "un";
 
+  // Construct isomorphism between presentation and matrix group.
   if IsDiscreteTorsionFree(gen) then
     gen`matgrp := MatrixGroup<2, gen`field | gen`witness>;
 
-    to_mat := hom<gen`FPgrp -> gen`matgrp | Setseq(Generators(gen`matgrp))>;
+    to_mat := hom<gen`FPgrp -> gen`matgrp | [gen`matgrp!g : g in gen`witness]>;
     to_fp_fn := function(g)
       b, w := IsElementOf(Matrix(g), gen);
       assert b;
       return w;
     end function;
 
-    gen`isometry := iso<gen`matgrp -> gen`FPgrp | g :-> to_fp_fn(g), w :-> to_mat(w)>;
+    gen`iso := iso<gen`matgrp -> gen`FPgrp | g :-> to_fp_fn(g), w :-> to_mat(w)>;
   end if;
 end intrinsic;
 

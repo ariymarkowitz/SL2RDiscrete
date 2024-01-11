@@ -57,13 +57,15 @@ RecognizeDiscreteTorsionFree(gen);
 assert gen`type eq "df" and ReducedGenerators(gen) in {[A, B], [A^-1, B], [A, B^-1], [A^-1, B^-1]};
 
 S := gen`witness;
-F := gen`asFPGroup;
+F := gen`FPgrp;
 
 b, word := IsElementOf(S[1]^2*S[2]^-1*S[1]*S[2]^2, gen);
 assert b and word eq F.1^2 * F.2^-1 * F.1 * F.2^2;
 
 assert not IsElementOf(M![2, 0, 0, 1/2], gen);
 assert not IsElementOf(-One(M), gen);
+
+assert gen`iso(((gen`iso)^-1)(F.1*F.2)) eq F.1*F.2;
 
 // Reduction steps 2
 
@@ -132,18 +134,19 @@ D := M![2, -3-2*w, 3-2*w, 2];
 gen := SL2Gens([A, B, C, D], P);
 RecognizeDiscreteTorsionFree(gen);
 assert gen`type eq "dc";
-G := gen`asFPGroup;
+G := gen`FPgrp;
 assert Relations(G) eq [ G.1 * G.4^-1 * G.2^-1 * G.1^-1 * G.2 * G.3^-1 * G.4 * G.3 = Id(G) ];
 
 gen := SL2Gens([A*B, B*D, D^-1*B^-2*A^-1*C, B*D^2], P : psl);
 RecognizeDiscreteTorsionFree(gen);
 assert gen`type eq "dc";
-G := gen`asFPGroup;
+G := gen`FPgrp;
 assert Relations(G) eq [ G.1 * G.4 * G.2^-1 * G.1^-1 * G.2 * G.3 * G.4^-1 * G.3^-1 = Id(G) ];
 
 S := ReducedGenerators(gen);
 b, word := IsElementOf(S[4] * S[3], gen);
 H := AutomaticGroup(G);
 assert b and H!word eq H.4 * H.3;
+assert H!(gen`iso(((gen`iso)^-1)(G.1*G.2))) eq H.1*H.2;
 
 assert IsElementOf(-One(M), gen);
