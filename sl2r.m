@@ -162,7 +162,8 @@ declare attributes GrpSL2Gen:
   witness_word, // A word corresponding to each element of the witness
 
   // These attributes are only defined if SL2Gen is determined to be discrete and torsion-free.
-  asFPGroup, // Finite presetation
+  FPgrp, // Finite presetation
+  matgrp, // Matrix group (with reduced generating set)
   isometry; // Isometry to finitely presented group
 
 intrinsic Print(gen::GrpSL2Gen)
@@ -211,7 +212,7 @@ reduce_step := procedure(gen)
   // A single non-elliptic element generates a free group.
   if #gen`witness le 1 then
     gen`type := "df";
-    gen`asFPGroup := FreeGroup(#gen`witness_word);
+    gen`FPgrp := FreeGroup(#gen`witness_word);
   end if;
 
   // Compare the 2 generators of smallest length.
@@ -302,13 +303,13 @@ reduce_step := procedure(gen)
       if (IsOne(x) or (gen`psl and IsOne(-x))) then
         // The group has cocompact action.
         gen`type := "dc";
-        gen`asFPGroup := quo<F | evaluate_word(relation, symmetrize(Setseq(Generators(F))))>;
+        gen`FPgrp := quo<F | evaluate_word(relation, symmetrize(Setseq(Generators(F))))>;
         return;
       end if;
     end if;
     // The group is free.
     gen`type := "df";
-    gen`asFPGroup := F;
+    gen`FPgrp := F;
     return;
   end if;
 
@@ -323,6 +324,19 @@ intrinsic RecognizeDiscreteTorsionFree(gen::GrpSL2Gen)
   repeat
     reduce_step(gen);
   until gen`type ne "un";
+
+  if IsDiscreteTorsionFree(gen) then
+    gen`matgrp := MatrixGroup<2, gen`field | gen`witness>;
+
+    to_mat := hom<gen`FPgrp -> gen`matgrp | Setseq(Generators(gen`matgrp))>;
+    to_fp_fn := function(g)
+      b, w := IsElementOf(Matrix(g), gen);
+      assert b;
+      return w;
+    end function;
+
+    gen`isometry := iso<gen`matgrp -> gen`FPgrp | g :-> to_fp_fn(g), w :-> to_mat(w)>;
+  end if;
 end intrinsic;
 
 intrinsic IsDiscreteTorsionFree(gen::GrpSL2Gen) -> BoolElt
@@ -349,7 +363,7 @@ intrinsic IsElementOf(g::AlgMatElt, gen::GrpSL2Gen) -> BoolElt, GrpFPElt
   error if not IsDiscreteTorsionFree(gen), "The group is not discrete and torsion-free";
 
   gen_sym, inv := symmetrize(gen`witness);
-  G := gen`asFPGroup;
+  G := gen`FPgrp;
   fp_sym := symmetrize(Setseq(Generators(G)));
   g_word := Id(G);
   repeat
@@ -379,7 +393,7 @@ Two points in the same orbit will be mapped to the same orbit representative. }
   error if not IsDiscreteTorsionFree(gen), "The group is not discrete and torsion-free";
 
   gen_sym, inv := symmetrize(gen`witness);
-  G := gen`asFPGroup;
+  G := gen`FPgrp;
   fp_sym := symmetrize(Setseq(Generators(G)));
   g := One(gen`matalg);
   g_word := Id(G);
