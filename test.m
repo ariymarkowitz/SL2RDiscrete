@@ -26,6 +26,8 @@ A := M![1, w, 0, 1];
 B := M![1, 1, 0, 1];
 assert not abelian_is_cyclic(A, B);
 
+// Reduction steps 1
+
 A := M![1, 2, 0, 1];
 B := M![1, 0, 2, 1];
 Xpm, inv := symmetrize([A, B]);
@@ -48,9 +50,22 @@ assert gen`type eq "un" and gen`witness eq [A^-1, B];
 F := Universe(gen`witness_word);
 assert gen`witness_word eq [F.2^-1 * F.1^-1 * F.2, F.2];
 
+// Reduction 1
+
 gen := SL2Gens([A*B^2, B^-2*A^-1*B], P);
 RecognizeDiscreteTorsionFree(gen);
-assert gen`type eq "df" and gen`witness in {[A, B], [A^-1, B], [A, B^-1], [A^-1, B^-1]};
+assert gen`type eq "df" and ReducedGenerators(gen) in {[A, B], [A^-1, B], [A, B^-1], [A^-1, B^-1]};
+
+S := gen`witness;
+F := gen`asFPGroup;
+
+b, word := IsElementOf(S[1]^2*S[2]^-1*S[1]*S[2]^2, gen);
+assert b and word eq F.1^2 * F.2^-1 * F.1 * F.2^2;
+
+assert not IsElementOf(M![2, 0, 0, 1/2], gen);
+assert not IsElementOf(-One(M), gen);
+
+// Reduction steps 2
 
 A := M![1, 1, 1, 2];
 B := M![2, 1, 1, 1];
@@ -70,18 +85,20 @@ assert gen`type eq "un" and gen`witness in {[A, B], [A, B^-1]};
 
 gen := SL2Gens([B*A*B^-1, B], P);
 reduce_step(gen);
-assert gen`type eq "un" and gen`witness eq [A, B];
+assert gen`type eq "un" and gen`witness eq [A^-1, B];
 F := Universe(gen`witness_word);
 assert gen`witness_word eq [F.2^-1 * F.1^-1 * F.2, F.2];
 
+// Reduction 2
+
 gen := SL2Gens([A*B^2, B^-2*A^-1*B], P);
 RecognizeDiscreteTorsionFree(gen);
-assert gen`type eq "df" and gen`witness in {[A, B], [A^-1, B], [A, B^-1], [A^-1, B^-1]};
+assert gen`type eq "df" and ReducedGenerators(gen) in {[A, B], [A^-1, B], [A, B^-1], [A^-1, B^-1]};
 assert IsDiscreteFree(gen);
 
 A := M![1, w, 0, 1];
 B := M![1, 1, 0, 1];
-gen := SL2Gens([A*B^2, B^-2*A^-1*B], P);
+gen := SL2Gens([A, B], P);
 RecognizeDiscreteTorsionFree(gen);
 assert gen`type eq "ab";
 assert not IsDiscreteTorsionFree(gen);
@@ -100,6 +117,8 @@ RecognizeDiscreteTorsionFree(gen);
 assert gen`type eq "sm";
 assert not IsDiscreteTorsionFree(gen);
 
+// Cocompact reduction
+
 Q := Rationals();
 P<x> := PolynomialRing(Q);
 K<w> := NumberField(x^2 - 3);
@@ -114,4 +133,17 @@ gen := SL2Gens([A, B, C, D], P);
 RecognizeDiscreteTorsionFree(gen);
 assert gen`type eq "dc";
 G := gen`asFPGroup;
-assert Relations(G) := [ G.1 * G.4^-1 * G.2^-1 * G.1^-1 * G.2 * G.3^-1 * G.4 * G.3 = Id(G) ];
+assert Relations(G) eq [ G.1 * G.4^-1 * G.2^-1 * G.1^-1 * G.2 * G.3^-1 * G.4 * G.3 = Id(G) ];
+
+gen := SL2Gens([A*B, B*D, D^-1*B^-2*A^-1*C, B*D^2], P : psl);
+RecognizeDiscreteTorsionFree(gen);
+assert gen`type eq "dc";
+G := gen`asFPGroup;
+assert Relations(G) eq [ G.1 * G.4 * G.2^-1 * G.1^-1 * G.2 * G.3 * G.4^-1 * G.3^-1 = Id(G) ];
+
+S := ReducedGenerators(gen);
+b, word := IsElementOf(S[4] * S[3], gen);
+H := AutomaticGroup(G);
+assert b and H!word eq H.4 * H.3;
+
+assert IsElementOf(-One(M), gen);

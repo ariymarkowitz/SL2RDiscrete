@@ -1,3 +1,15 @@
+apply_mobius := function(z, g)
+  x := z[1]; y := z[2];
+  a := g[1, 1]; b := g[2, 1]; c := g[1, 2]; d := g[2, 2];
+  den := (c*x + d)^2 + (c*y)^2;
+  return <((a*x + b)*(c*x + d) + a*c*y^2)/den, ((c*x+d)*a*y - (a*x+b)*c*y)/den>;
+end function;
+
+dist_proxy := function(z)
+  a := z[1]; b := z[2];
+  return (a^2 + (b-1)^2)/(a^2 + (b+1)^2);
+end function;
+
 /* Apply a mobius transformation to i, returning a vector */
 to_point := function(g)
   a := g[1, 1]; b := g[2, 1]; c := g[1, 2]; d := g[2, 2];
@@ -5,7 +17,7 @@ to_point := function(g)
   return <(b*d + a*c)/den, (a*d - b*c)/den>;
 end function;
 
-/* Get tanh^2(d(i, gi)), where d is hyperbolic distance in the upper half-plane. */
+/* Get tanh^2(d(i, gi)/2), where d is hyperbolic distance in the upper half-plane. */
 length_proxy := function(g)
   a := g[1, 1]; b := g[2, 1]; c := g[1, 2]; d := g[2, 2];
   return ((a-d)^2 + (b+c)^2)/((a+d)^2 + (b-c)^2);
@@ -34,9 +46,9 @@ ord_point := function(z, place)
   return < sign_alg(x, place) lt 0 select 3 else 1, (x^2 + y^2 - 1)/x >;
 end function;
 
-/* Compare the tuple corresponding to two complex points. */
-comp_ord := function(a, b, place)
-  if a[1] ne b[1] then return a[1] - b[1]; end if;
+/* Compare a pair of real algebraic numbers. */
+comp_alg_pair := function(a, b, place)
+  if a[1] ne b[1] then return comp_alg(a[1], b[1], place); end if;
   return comp_alg(a[2], b[2], place);
 end function;
 
@@ -54,7 +66,7 @@ bounding_path_perm := function(gens_sym, invert_perm, place)
   S := Parent(invert_perm);
   bounding_paths := Id(S);
   ordinals := [ord_point(to_point(g), place) : g in gens_sym];
-  Sort(~ordinals, func<a, b | comp_ord(a, b, place)>, ~bounding_paths);
+  Sort(~ordinals, func<a, b | comp_alg_pair(a, b, place)>, ~bounding_paths);
   rotate := S!([2..#gens_sym] cat [1]);
   return rotate^bounding_paths * invert_perm;
 end function;
@@ -251,6 +263,12 @@ reduce_step := procedure(gen)
       gen`witness_word := evaluate_word(word, words_sym);
       return;
     end if;
+    if not gen`psl and IsOne(-elt) then
+      gen`type := "ne";
+      gen`witness := elt;
+      gen`witness_word := evaluate_word(word, words_sym);
+      return;
+    end if;
     if not IsOne(elt) and comp_alg(b_len + length_proxy(elt), 1, gen`place) lt 0 then
       // If Phi(b)*Phi(elt)<1, Phi(a)*Phi(elt)<1.
       // Since a and b do not commute, either b and elt do not commute or
@@ -300,27 +318,93 @@ reduce_step := procedure(gen)
   gen`witness_word[term_id] := evaluate_word(word, words_sym);
 end procedure;
 
-intrinsic RecognizeDiscreteTorsionFree(gen: GrpSL2Gen)
+intrinsic RecognizeDiscreteTorsionFree(gen::GrpSL2Gen)
 { Decide a generating set of SL(2, R) is discrete and torsion-free }
   repeat
     reduce_step(gen);
   until gen`type ne "un";
 end intrinsic;
 
-intrinsic IsDiscreteTorsionFree(gen: GrpSL2Gen) -> BoolElt
+intrinsic IsDiscreteTorsionFree(gen::GrpSL2Gen) -> BoolElt
 { Return true if the generating set is discrete and torsion-free. }
-  error if gen`type eq "un", "The generating set must be prepared using `RecognizeDiscreteTorsionFree`";
+  error if gen`type eq "un", "The group type is unknown; prepare it using `RecognizeDiscreteTorsionFree`";
   return gen`type eq "dc" or gen`type eq "df";
 end intrinsic;
 
-intrinsic IsDiscreteFree(gen: GrpSL2Gen) -> BoolElt
+intrinsic IsDiscreteFree(gen::GrpSL2Gen) -> BoolElt
 { Return true if the generating set is discrete and free. }
   error if gen`type eq "un", "The group type is unknown; prepare it using `RecognizeDiscreteTorsionFree`";
   return gen`type eq "df";
 end intrinsic;
 
-intrinsic IsDiscreteCocompact(gen: GrpSL2Gen) -> BoolElt
+intrinsic IsDiscreteCocompact(gen::GrpSL2Gen) -> BoolElt
 { Return true if the generating set is discrete with cocompact action. }
   error if gen`type eq "un", "The group type is unknown; prepare it using `RecognizeDiscreteTorsionFree`";
   return gen`type eq "dc";
+end intrinsic;
+
+intrinsic IsElementOf(g::AlgMatElt, gen::GrpSL2Gen) -> BoolElt, GrpFPElt
+{ Decide whether g is an element of the group, returning the word in the reduced set evaluating to g. }
+  error if gen`type eq "un", "The group must be prepared using `RecognizeDiscreteTorsionFree`";
+  error if not IsDiscreteTorsionFree(gen), "The group is not discrete and torsion-free";
+
+  gen_sym, inv := symmetrize(gen`witness);
+  G := gen`asFPGroup;
+  fp_sym := symmetrize(Setseq(Generators(G)));
+  g_word := Id(G);
+  repeat
+    finish := true;
+    for word in short_words(gen_sym, inv, gen`place) do
+      elt := evaluate_word(word, gen_sym);
+      h := g*elt;
+      if comp_alg(length_proxy(h), length_proxy(g), gen`place) lt 0 then
+        g := h;
+        g_word *:= evaluate_word(word, fp_sym);
+        finish := false;
+        break;
+      end if;
+    end for;
+  until finish eq true;
+  if IsId(g) or (gen`psl and IsId(-g)) then
+    return true, g_word^-1;
+  else
+    return false;
+  end if;
+end intrinsic;
+
+intrinsic MapToFundamentalDomain(z::Tup, gen::GrpSL2Gen) -> AlgMatElt, GrpFPElt
+{ Return g (and corresponding word w) such that gz is in the fundamental domain.
+Two points in the same orbit will be mapped to the same orbit representative. }
+  error if gen`type eq "un", "The group must be prepared using `RecognizeDiscreteTorsionFree`";
+  error if not IsDiscreteTorsionFree(gen), "The group is not discrete and torsion-free";
+
+  gen_sym, inv := symmetrize(gen`witness);
+  G := gen`asFPGroup;
+  fp_sym := symmetrize(Setseq(Generators(G)));
+  g := One(gen`matalg);
+  g_word := Id(G);
+  w := z;
+  repeat
+    finish := true;
+    for word in short_words(gen_sym, inv, gen`place) do
+      elt := evaluate_word(word, gen_sym);
+      w2 := apply_mobius(w, elt);
+      cmp := comp_alg(dist_proxy(w2), dist_proxy(w), gen`place);
+      if cmp lt 0 or (cmp eq 0 and comp_alg_pair(w2, w, gen`place) lt 0) then
+        g *:= elt;
+        g_word *:= evaluate_word(word, fp_sym);
+        w := w2;
+        finish := false;
+        break;
+      end if;
+    end for;
+  until finish;
+  return g, g_word;
+end intrinsic;
+
+intrinsic ReducedGenerators(gen::GrpSL2Gen) -> SeqEnum[AlgMatElt]
+{ Return a reduced generating set for a discrete torsion-free group. }
+  error if gen`type eq "un", "The group must be prepared using `RecognizeDiscreteTorsionFree`";
+  error if not IsDiscreteTorsionFree(gen), "The group is not discrete and torsion-free";
+  return gen`witness;
 end intrinsic;
