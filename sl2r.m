@@ -88,7 +88,7 @@ abelian_is_cyclic := function(g, h)
   error if g*h ne h*g, "Arguments must commute";
   G := MatrixGroup<2, BaseRing(g) | g, h>;
   if NumberOfGenerators(G) le 1 then
-    return true, g, 1, 1;
+    return true, 1, 1;
   end if;
   if IsCompletelyReducible(G) then
     // G is semisimple over an extension of K. We find a representation as an abelian group.
@@ -102,16 +102,17 @@ abelian_is_cyclic := function(g, h)
     proj := f1*f2*f3;
     return true, Eltseq(proj(g))[1], Eltseq(proj(h))[1];
   else
-    // G is unipotent, so isomorphic to the additive group via the top-right entry of the upper
+    // G is unipotent (up to sign), so isomorphic to the additive group via the top-right entry of the upper
     // triangularisation.
-    b, A := IsUnipotent(G);
-    assert b;
-    G2 := G^A;
-    r := (G2.1)[1,2]/(G2.2)[1,2];
+
+    m, T := JordanForm(g);
+    assert m[1,2] eq 1;
+    r := (T*h*T^-1)[1,2];
+
     Q := RationalField();
     if r in Q then
       r := Q!r; // Just in case
-      return true, Numerator(r), Denominator(r);
+      return true, Denominator(r), Numerator(r);
     else
       return false, _, _;
     end if;
