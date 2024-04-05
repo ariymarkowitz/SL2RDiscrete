@@ -418,9 +418,19 @@ Two points in the same orbit will be mapped to the same orbit representative. }
   return g, g_word;
 end intrinsic;
 
+intrinsic Generators(gen::GrpSL2Gen) -> SeqEnum[AlgMatElt]
+{ Return the original generating set. }
+  return gen`seq;
+end intrinsic;
+
 intrinsic ReducedGenerators(gen::GrpSL2Gen) -> SeqEnum[AlgMatElt]
 { Return a reduced generating set for a discrete torsion-free group. }
   error if gen`type eq "un", "The group must be prepared using `RecognizeDiscreteTorsionFree`";
   error if not IsDiscreteTorsionFree(gen), "The group is not discrete and torsion-free";
   return gen`witness;
+end intrinsic;
+
+intrinsic BaseField(gen::GrpSL2Gen) -> FldNum
+{ Return the base field of the group. }
+  return gen`field;
 end intrinsic;
