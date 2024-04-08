@@ -1,4 +1,4 @@
-Attach("sl2rdtf.m");
+Attach("sl2r-dtf.m");
 
 Q := Rationals();
 P<x> := PolynomialRing(Q);
