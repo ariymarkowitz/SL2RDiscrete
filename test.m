@@ -31,8 +31,8 @@ assert not abelian_is_cyclic(A, B);
 A := M![1, 2, 0, 1];
 B := M![1, 0, 2, 1];
 Xpm, inv := symmetrize([A, B]);
-assert Xpm eq [A, B, A^-1, B^-1];
-assert Eltseq(inv) eq [3, 4, 1, 2];
+assert Xpm eq [A, A^-1, B, B^-1];
+assert Eltseq(inv) eq [2, 1, 4, 3];
 assert Eltseq(bounding_path_perm(Xpm, inv, P)) eq [4, 2, 3, 1];
 assert short_words(Xpm, inv, P) eq [[1], [1, 4], [2], [3], [4], [4, 1]];
 
@@ -72,10 +72,10 @@ assert gen`iso(((gen`iso)^-1)(F.1*F.2)) eq F.1*F.2;
 A := M![1, 1, 1, 2];
 B := M![2, 1, 1, 1];
 Xpm, inv := symmetrize([A, B]);
-assert Xpm eq [A, B, A^-1, B^-1];
-assert Eltseq(inv) eq [3, 4, 1, 2];
-assert Eltseq(bounding_path_perm(Xpm, inv, P)) eq [4, 1, 2, 3];
-assert short_words(Xpm, inv, P) eq [[1], [1, 4], [1, 4, 3], [1, 4, 3, 2], [2], [2, 1], [2, 1, 4], [2, 1, 4, 3], [3], [3, 2], [3, 2, 1], [3, 2, 1, 4], [4], [4, 3], [4, 3, 2], [4, 3, 2, 1]];
+assert Xpm eq [A, A^-1, B, B^-1];
+assert Eltseq(inv) eq [2, 1, 4, 3];
+assert Eltseq(bounding_path_perm(Xpm, inv, P)) eq [4, 3, 1, 2];
+assert short_words(Xpm, inv, P) eq [[1], [1, 4], [1, 4, 2], [1, 4, 2, 3], [2], [2, 3], [2, 3, 1], [2, 3, 1, 4], [3], [3, 1], [3, 1, 4], [3, 1, 4, 2], [4], [4, 2], [4, 2, 3], [4, 2, 3, 1]];
 
 gen := SL2Gens([A, B], P);
 reduce_step(gen);
@@ -150,3 +150,23 @@ assert b and H!word eq H.4 * H.3;
 assert H!(gen`iso(((gen`iso)^-1)(G.1*G.2))) eq H.1*H.2;
 
 assert IsElementOf(-One(M), gen);
+
+// Negative elements
+
+A := M![-1/2, 0, 0, -2];
+B := M![1/8, 0, 0, 8];
+gen := SL2Gens([A, B], P);
+RecognizeDiscreteTorsionFree(gen);
+assert IsDiscreteTorsionFree(gen);
+assert HasNegativeOne(gen);
+assert Rank(gen) eq 2;
+assert ReducedGenerators(gen)[Rank(gen)] eq -One(M);
+
+A := M![1, 1, 1, 2];
+B := M![2, 1, 1, 1];
+gen := SL2Gens([A*B^2, B^-2*A^-1*B, -A^3*B], P);
+RecognizeDiscreteTorsionFree(gen);
+assert IsDiscreteTorsionFree(gen);
+assert HasNegativeOne(gen);
+assert Rank(gen) eq 3;
+assert ReducedGenerators(gen)[Rank(gen)] eq -One(M);

@@ -54,10 +54,10 @@ end function;
 
 /* Get the symmetric sequence of generators and inverses */
 symmetrize := function(gens)
-  gens_sym := gens cat [x^-1 : x in gens];
+  gens_sym := &cat[[x, x^-1] : x in gens];
   if Nresults() eq 1 then return gens_sym; end if;
   S := Sym(#gens_sym);
-  invert_perm := S!([#gens + 1 .. 2*#gens] cat [1 .. #gens]);
+  invert_perm := S!(&cat[[2*i, 2*i-1] : i in [1 .. #gens]]);
   return gens_sym, invert_perm;
 end function;
 
@@ -142,22 +142,22 @@ declare attributes GrpSL2Gen:
   place, // Real embedding
   seq, // Generators
   psl, // Whether the generators should be considered a subgroup of PSL
+  has_neg, // True if psl is false and the group has -I
+  neg_word, // -I as a word in the generators
   /**
    * "un" - Unknown type (only used for intermediate reduction steps)
    * "df" - Discrete and free
    * "dc" - Discrete with co-compact action
    * "ab" - Contains an indiscrete abelian subgroup
    * "el" - Contains an elliptic element
-   * "ne" - Contains -1
    */
   type,
   /**
    * Proof of the type of the group:
    * "un" - Nielsen-equivalent generating set
-   * "df" and "dc" - Reduced generating set
+   * "df" and "dc" - Reduced generating set (does not include -I)
    * "sm" and "ab" - Pair of elements generating an indiscrete group
    * "el" - Elliptic element
-   * "ne" - -1
    */
   witness,
   witness_word, // A word corresponding to each element of the witness
@@ -185,6 +185,7 @@ intrinsic SL2Gens(seq::SeqEnum[AlgMatElt[FldNum]], place::PlcNumElt : psl := fal
   gen`field := BaseRing(gen`matalg);
   gen`place := place;
   gen`psl := psl;
+  gen`has_neg := false;
 
   gen`type := "un";
   gen`witness := seq;
@@ -196,9 +197,13 @@ end intrinsic;
 reduce_step := procedure(gen)
   if gen`type ne "un" then return; end if;
 
-  // Remove duplicate or elliptic generators
+  // Remove duplicate, elliptic, I or -I generators.
   for i -> g in gen`witness do
-    if IsOne(g) or (gen`psl and IsOne(-g)) then
+    if IsOne(g) or IsOne(-g) then
+      if IsOne(-g) and not gen`psl and not gen`has_neg then
+        gen`has_neg := true;
+        gen`neg_word := gen`witness_word[i];
+      end if;
       Remove(~gen`witness, i);
       Remove(~gen`witness_word, i);
       return;
@@ -214,6 +219,10 @@ reduce_step := procedure(gen)
   if #gen`witness le 1 then
     gen`type := "df";
     gen`FPgrp := FreeGroup(#gen`witness_word);
+    if gen`has_neg then
+      gen`FPgrp := DirectProduct(gen`FPgrp, CyclicGroup(GrpFP, 2));
+    end if;
+    return;
   end if;
 
   // Compare the 2 generators of smallest length.
@@ -225,7 +234,7 @@ reduce_step := procedure(gen)
   wa := gen`witness_word[a_id];
   wb := gen`witness_word[b_id];
 
-  // Reduce generators if an abelian pair is found
+  // Reduce generators if an abelian pair is found.
   if a*b eq b*a then
     is_discrete, m, n := abelian_is_cyclic(a, b);
     if not is_discrete then
@@ -235,12 +244,10 @@ reduce_step := procedure(gen)
       return;
     end if;
 
-    // Check whether a and b generate -1
-    if not gen`psl and IsOne(-a^n * b^-m) then
-      gen`type := "ne";
-      gen`witness := -One(gen`matalg);
-      gen`witness_word := wa^n * wb^-m;
-      return;
+    // Check whether a and b generate -1.
+    if not gen`psl and not gen`has_neg and IsOne(-a^n * b^-m) then
+      gen`has_neg := true;
+      gen`neg_word := wa^n * wb^-m;
     end if;
 
     c, x, y := ExtendedGreatestCommonDivisor(m, n);
@@ -265,13 +272,7 @@ reduce_step := procedure(gen)
       gen`witness_word := evaluate_word(word, words_sym);
       return;
     end if;
-    if not gen`psl and IsOne(-elt) then
-      gen`type := "ne";
-      gen`witness := elt;
-      gen`witness_word := evaluate_word(word, words_sym);
-      return;
-    end if;
-    if not IsOne(elt) and comp_alg(b_len + length_proxy(elt), 1, gen`place) lt 0 then
+    if not IsOne(elt) and not IsOne(-elt) and comp_alg(b_len + length_proxy(elt), 1, gen`place) lt 0 then
       // If Phi(b)*Phi(elt)<1, Phi(a)*Phi(elt)<1.
       // Since a and b do not commute, either b and elt do not commute or
       // a and elt do not commute.
@@ -288,7 +289,7 @@ reduce_step := procedure(gen)
       reduction := length_proxy(gens_sym[term_id]) - length_proxy(elt);
       if comp_alg(reduction, max_reduction, gen`place) gt 0 then
         max_reduction := reduction;
-        replacement := <word, Min(term_id, term_id^invert_perm)>;
+        replacement := <word, Ceiling(term_id/2)>;
       end if;
     end for;
   end for;
@@ -301,8 +302,16 @@ reduce_step := procedure(gen)
     if #decomp eq 1 then
       relation := decomp[1];
       x := evaluate_word(relation, gens_sym);
-      if (IsOne(x) or (gen`psl and IsOne(-x))) then
+      if (not gen`psl and not gen`has_neg and IsOne(-x)) then
+        gen`has_neg := true;
+        gen`neg_word := evaluate_word(relation, words_sym);
+      end if;
+      if IsOne(x) then
         // The group has cocompact action.
+        // We don't need to check for -I: There is a lift of the group from PSL to SL,
+        // but every relation containing the identity contains each generator an even number of times,
+        // so no relation in the group in PSL can evaluate to -I in a cover in SL.
+        // See [J. Button, "Lifting Möbius Groups", New York J. Math].
         gen`type := "dc";
         gen`FPgrp := quo<F | evaluate_word(relation, symmetrize(Setseq(Generators(F))))>;
         return;
@@ -311,6 +320,9 @@ reduce_step := procedure(gen)
     // The group is free.
     gen`type := "df";
     gen`FPgrp := F;
+    if gen`has_neg then
+      gen`FPgrp := DirectProduct(gen`FPgrp, CyclicGroup(GrpFP, 2));
+    end if;
     return;
   end if;
 
@@ -321,16 +333,16 @@ reduce_step := procedure(gen)
 end procedure;
 
 intrinsic RecognizeDiscreteTorsionFree(gen::GrpSL2Gen)
-{ Decide a generating set of SL(2, R) is discrete and torsion-free }
+{ Decide a generating set of SL(2, R) is discrete and torsion-free. }
   repeat
     reduce_step(gen);
   until gen`type ne "un";
 
   // Construct isomorphism between presentation and matrix group.
   if IsDiscreteTorsionFree(gen) then
-    gen`matgrp := MatrixGroup<2, gen`field | gen`witness>;
+    gen`matgrp := MatrixGroup<2, gen`field | ReducedGenerators(gen)>;
 
-    to_mat := hom<gen`FPgrp -> gen`matgrp | [gen`matgrp!g : g in gen`witness]>;
+    to_mat := hom<gen`FPgrp -> gen`matgrp | [gen`matgrp!g : g in ReducedGenerators(gen)]>;
     to_fp_fn := function(g)
       b, w := IsElementOf(Matrix(g), gen);
       assert b;
@@ -381,8 +393,10 @@ intrinsic IsElementOf(g::AlgMatElt, gen::GrpSL2Gen) -> BoolElt, GrpFPElt
       end if;
     end for;
   until finish eq true;
-  if IsId(g) or (gen`psl and IsId(-g)) then
+  if IsOne(g) or (gen`psl and IsOne(-g)) then
     return true, g_word^-1;
+  elif gen`has_neg and IsOne(-g) then
+    return true, g_word^-1*G.(NumberOfGenerators(G));
   else
     return false;
   end if;
@@ -427,10 +441,32 @@ intrinsic ReducedGenerators(gen::GrpSL2Gen) -> SeqEnum[AlgMatElt]
 { Return a reduced generating set for a discrete torsion-free group. }
   error if gen`type eq "un", "The group must be prepared using `RecognizeDiscreteTorsionFree`";
   error if not IsDiscreteTorsionFree(gen), "The group is not discrete and torsion-free";
-  return gen`witness;
+  if (gen`has_neg) then
+    return gen`witness cat [-One(BaseField(gen))];
+  else
+    return gen`witness;
+  end if;
 end intrinsic;
 
 intrinsic BaseField(gen::GrpSL2Gen) -> FldNum
 { Return the base field of the group. }
   return gen`field;
 end intrinsic;
+
+intrinsic HasNegativeOne(gen::GrpSL2Gen) -> FldNum, GrpFPElt
+{ Return true if the subgroup of group SL(2, R) and has -I }
+  error if gen`type eq "un", "The group must be prepared using `RecognizeDiscreteTorsionFree`";
+  error if gen`psl, "The group must be a subgroup of SL(2, R)";
+  if gen`has_neg then
+    return true, gen`neg_word;
+  else
+    return false;
+  end if;
+end intrinsic;
+
+intrinsic Rank(gen::GrpSL2Gen) -> RngIntElt
+{ The rank of a discrete torsion-free group. }
+  error if gen`type eq "un", "The group must be prepared using `RecognizeDiscreteTorsionFree`";
+  error if not IsDiscreteTorsionFree(gen), "The group is not discrete and torsion-free";
+  return gen`has_neg select #gen`witness + 1 else #gen`witness;
+end intrinsic
