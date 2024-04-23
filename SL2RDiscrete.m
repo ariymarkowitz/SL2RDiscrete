@@ -516,7 +516,7 @@ intrinsic TorsionFreeSubgroup(gen::GrpSL2Gen) -> GrpSL2Gen, SetEnum[AlgMatElt], 
   grepr := map<G -> G | x :-> hrepr(mquot(x))>;
 
   S := {hrepr(h) : h in H};
-  new_seq := {Matrix(s*x*grepr((s*x)^-1)) : s in S, x in Generators(G)};
+  new_seq := {Matrix(x*s*grepr((x*s)^-1)) : s in S, x in Generators(G)};
   
   return SL2Gens(Setseq(new_seq), gen`place), {Matrix(s) : s in S}, p;
 end intrinsic;
@@ -532,15 +532,15 @@ intrinsic IsDiscrete(gen::GrpSL2Gen) -> BoolElt, GrpSL2Gen, SetEnum[AlgMatElt], 
   end if;
 end intrinsic;
 
-intrinsic IsElementOf(g::AlgMatElt, tf_gp::GrpSL2Gen, cosets::SetEnum[AlgMatElt]) -> BoolElt, AlgMatElt, GrpFPElt
+intrinsic IsElementOf(g::AlgMatElt, tf_gp::GrpSL2Gen, cosets::SetEnum[AlgMatElt]) -> BoolElt, GrpFPElt, AlgMatElt
 { Decide whether g is an element of a subgroup of SL(2, R) or PSL(2, R),
   given a torsion-free discrete subgroup and a set of coset representatives.
   If it is, then return (s, w) where s is a coset representative and w is a word in the reduced set
   such that s*w evaluates to g. }
   for s in cosets do
-    b, word := IsElementOf(s*g, tf_gp);
+    b, word := IsElementOf(gs^-1, tf_gp);
     if b then
-      return true, AlgMatElt, GrpFPElt;
+      return true, word, s;
     end if;
   end for;
   return false, _, _;
