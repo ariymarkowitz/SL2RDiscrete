@@ -1,4 +1,4 @@
-Attach("sl2r-discrete.m");
+Attach("SL2RDiscrete.m");
 
 Q := Rationals();
 P<x> := PolynomialRing(Q);
