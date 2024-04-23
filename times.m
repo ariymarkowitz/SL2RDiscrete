@@ -1,8 +1,8 @@
-Attach("sl2r-dtf.m");
+Attach("sl2r-discrete.m");
 
 Q := Rationals();
 P<x> := PolynomialRing(Q);
-K<w> := NumberField(x^2 - 3);
+K := NumberField(x^2 - 3);
 M := MatrixAlgebra(K, 2);
 P := RealPlaces(K)[1];
 
@@ -76,3 +76,23 @@ good := [G : G in tests[2] | IsDiscreteTorsionFree(G)][1..100];
 pointslist := [[[random_point(d, G) : i in [1..10]] : G in good] : d in [5, 10, 20, 40]];
 
 results2 := [time_fundamental_domain(good, points) : points in pointslist];
+
+// Time discrete torsion-free
+
+Q := Rationals();
+PQ<x> := PolynomialRing(Q);
+K<t> := NumberField(x^2 - 3);
+M := MatrixAlgebra(K, 2);
+A := M![2-t, t-1, 2-2*t, t-2];
+B := M![t-1, 1, t-2, 1];
+C := M![t, 1, -1, 0];
+P := RealPlaces(K)[1];
+G := SL2Gens([A, B, C], P);
+time b, H, S, p := IsDiscrete(G);
+
+s := Setseq(S)[200];
+h := ReducedGenerators(H)[20];
+time b, w := IsElementOf(s*h, H);
+
+G := SL2Gens([A, B], P);
+time b, H, S, p := IsDiscrete(G);

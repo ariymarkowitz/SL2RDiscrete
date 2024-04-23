@@ -398,7 +398,7 @@ intrinsic IsElementOf(g::AlgMatElt, gen::GrpSL2Gen) -> BoolElt, GrpFPElt
   elif gen`has_neg and IsOne(-g) then
     return true, g_word^-1*G.(NumberOfGenerators(G));
   else
-    return false;
+    return false, _;
   end if;
 end intrinsic;
 
@@ -470,3 +470,78 @@ intrinsic Rank(gen::GrpSL2Gen) -> RngIntElt
   error if not IsDiscreteTorsionFree(gen), "The group is not discrete and torsion-free";
   return gen`has_neg select #gen`witness + 1 else #gen`witness;
 end intrinsic
+
+/* DISCRETENESS TEST */
+
+intrinsic TorsionFreeSubgroup(gen::GrpSL2Gen) -> GrpSL2Gen, SetEnum[AlgMatElt], RngIntElt
+{ Find a generating set for a torsion-free congruence subgroup. }
+  F := gen`field;
+  K<w> := SimpleExtension(sub<gen`field | [x : x in Eltseq(m), m in Generators(gen)]>);
+
+  // Make sure w is an algebraic integer.
+  s := LCM([Denominator(x) : x in Eltseq(MinimalPolynomial(w))]);
+  K<w> := sub<K | s*w>;
+
+  denominators := [Denominator(K!x) : x in Eltseq(m), m in Generators(gen)];
+  denominators := [x : x in denominators | x ne 1];
+
+  O := Integers(K);
+  b1, n1 := NormEquation(Integers(K), 1);
+  b2, n2 := NormEquation(Integers(K), 2);
+  n := (b1 select n1 else []) cat (b2 select n2 else []);
+  U, Umap := TorsionUnitGroup(K);
+  ints := [x*Umap(u) : x in n, u in U | x ne 1];
+
+  p := 2;
+  while true do
+    p := NextPrime(p);
+    if (Integers()!Norm(w) mod p) ne 0 and &and[d mod p ne 0 : d in denominators] and &and[Abs(Norm(x - 2)) le 2 : x in ints] then
+      break;
+    end if;
+  end while;
+
+  Fp := FiniteField(p);
+  P := PolynomialRing(Fp);
+  f := Factorization(P!DefiningPolynomial(K))[1][1];
+  Fq<a> := ext<Fp | f>;
+
+  G := sub<GL(2, gen`field) | Generators(gen)>;
+
+  rquot := hom<F -> Fq | x :-> Evaluate(P!Eltseq(K!x), a)>;
+  H, mquot := ChangeRing(G, Fq, rquot);
+
+  word := InverseWordMap(H);
+  srepr := hom<Image(word) -> G | [G!x : x in Generators(gen)]>;
+  hrepr := word * srepr;
+  grepr := map<G -> G | x :-> hrepr(mquot(x))>;
+
+  S := {hrepr(h) : h in H};
+  new_seq := {Matrix(s*x*grepr((s*x)^-1)) : s in S, x in Generators(G)};
+  
+  return SL2Gens(Setseq(new_seq), gen`place), {Matrix(s) : s in S}, p;
+end intrinsic;
+
+intrinsic IsDiscrete(gen::GrpSL2Gen) -> BoolElt, GrpSL2Gen, SetEnum[AlgMatElt], RngIntElt
+{ Decide whether a subgroup of SL(2, R) or PSL(2, R) is discrete, returning a finite index subgroup and set of coset representatives if so }
+  H, S, p := TorsionFreeSubgroup(gen);
+  RecognizeDiscreteTorsionFree(H);
+  if IsDiscreteTorsionFree(H) then
+    return true, H, S, p;
+  else
+    return false, H, S, p;
+  end if;
+end intrinsic;
+
+intrinsic IsElementOf(g::AlgMatElt, tf_gp::GrpSL2Gen, cosets::SetEnum[AlgMatElt]) -> BoolElt, AlgMatElt, GrpFPElt
+{ Decide whether g is an element of a subgroup of SL(2, R) or PSL(2, R),
+  given a torsion-free discrete subgroup and a set of coset representatives.
+  If it is, then return (s, w) where s is a coset representative and w is a word in the reduced set
+  such that s*w evaluates to g. }
+  for s in cosets do
+    b, word := IsElementOf(s*g, tf_gp);
+    if b then
+      return true, AlgMatElt, GrpFPElt;
+    end if;
+  end for;
+  return false, _, _;
+end intrinsic;
