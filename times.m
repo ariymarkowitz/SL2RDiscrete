@@ -96,3 +96,11 @@ time b, w := IsElementOf(s*h, H);
 
 G := SL2Gens([A, B], P);
 time b, H, S, p := IsDiscrete(G);
+
+x := K!Random(Integers(K), 1000);
+y := K!Random(Integers(K), 1000);
+z := K!Random(Integers(K), 1000);
+w := K!Random(Integers(K), 1000);
+A := M![1, x, 0, 1] * M![1, 0, y, 1] * M![1, z, 0, 1] * M![1, 0, w, 1];
+
+time b := IsElementOf(A, H, S);
