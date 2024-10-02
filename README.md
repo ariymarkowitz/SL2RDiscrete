@@ -79,7 +79,7 @@ The rank of a discrete torsion-free group.
 
 ## Discrete groups
 
-`intrinsic TorsionFreeSubgroup(gen::GrpSL2Gen) -> GrpSL2Gen, SetEnum[AlgMatElt], RngIntElt`
+`TorsionFreeSubgroup(gen::GrpSL2Gen) -> GrpSL2Gen, SetEnum[AlgMatElt], RngIntElt`
 
 Find a generating set for a torsion-free congruence subgroup.
 
