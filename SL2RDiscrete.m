@@ -142,7 +142,7 @@ declare attributes GrpSL2Gen:
   place, // Real embedding
   seq, // Generators
   psl, // Whether the generators should be considered a subgroup of PSL
-  has_neg, // True if psl is false and the group has -I
+  has_neg, // True if psl is false and the group contains -I
   neg_word, // -I as a word in the generators
   /**
    * "un" - Unknown type (only used for intermediate reduction steps)
@@ -454,7 +454,7 @@ intrinsic BaseField(gen::GrpSL2Gen) -> FldNum
 end intrinsic;
 
 intrinsic HasNegativeOne(gen::GrpSL2Gen) -> FldNum, GrpFPElt
-{ Return true if the subgroup of group SL(2, R) and has -I }
+{ Return true if the subgroup of SL(2, R) has -I. }
   error if gen`type eq "un", "The group must be prepared using `RecognizeDiscreteTorsionFree`";
   error if gen`psl, "The group must be a subgroup of SL(2, R)";
   if gen`has_neg then
@@ -522,7 +522,7 @@ intrinsic TorsionFreeSubgroup(gen::GrpSL2Gen) -> GrpSL2Gen, SetEnum[AlgMatElt], 
 end intrinsic;
 
 intrinsic IsDiscrete(gen::GrpSL2Gen) -> BoolElt, GrpSL2Gen, SetEnum[AlgMatElt], RngIntElt
-{ Decide whether a subgroup of SL(2, R) or PSL(2, R) is discrete, returning a finite index subgroup and set of coset representatives if so }
+{ Decide whether a subgroup of SL(2, R) or PSL(2, R) is discrete, returning a finite index subgroup and set of coset representatives if so. }
   H, S, p := TorsionFreeSubgroup(gen);
   RecognizeDiscreteTorsionFree(H);
   if IsDiscreteTorsionFree(H) then
