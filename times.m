@@ -65,7 +65,7 @@ function time_fundamental_domain(genslist, points)
   return <Cputime(t)/(&+[#p : p in points]), worst>;
 end function;
 
-// Time recognition
+// Time discrete-torsion-free recognition
 params := [<7, 2>, <15, 5>, <20, 10>, <27, 20>];
 tests := [[SL2Gens(random_gens(K, 10, p[1], p[2]), P) : i in [1..1000]] : p in params];
 
@@ -77,7 +77,7 @@ pointslist := [[[random_point(d, G) : i in [1..10]] : G in good] : d in [5, 10, 
 
 results2 := [time_fundamental_domain(good, points) : points in pointslist];
 
-// Time discrete torsion-free
+// Time discrete recognition
 
 Q := Rationals();
 PQ<x> := PolynomialRing(Q);
@@ -88,13 +88,6 @@ B := M![t-1, 1, t-2, 1];
 C := M![t, 1, -1, 0];
 P := RealPlaces(K)[1];
 G := SL2Gens([A, B, C], P);
-time b, H, S, p := IsDiscrete(G);
-
-s := Setseq(S)[200];
-h := ReducedGenerators(H)[20];
-time b, w := IsElementOf(s*h, H);
-
-G := SL2Gens([A, B], P);
 time b, H, S, p := IsDiscrete(G);
 
 x := K!Random(Integers(K), 1000);

@@ -480,7 +480,9 @@ intrinsic TorsionFreeSubgroup(gen::GrpSL2Gen) -> GrpSL2Gen, SetEnum[AlgMatElt], 
 
     // Make sure w is an algebraic integer.
     s := LCM([Denominator(x) : x in Eltseq(MinimalPolynomial(w))]);
-    K<w> := sub<K | s*w>;
+    if s ne 1 then
+        K<w> := sub<K | s*w>;
+    end if;
 
     denominators := [Denominator(K!x) : x in Eltseq(m), m in Generators(gen)];
     denominators := [x : x in denominators | x ne 1];
@@ -493,12 +495,9 @@ intrinsic TorsionFreeSubgroup(gen::GrpSL2Gen) -> GrpSL2Gen, SetEnum[AlgMatElt], 
     ints := [x*Umap(u) : x in n, u in U | x ne 1];
 
     p := 2;
-    while true do
+    repeat
         p := NextPrime(p);
-        if (Integers()!Norm(w) mod p) ne 0 and &and[d mod p ne 0 : d in denominators] and &and[Abs(Norm(x - 2)) le 2 : x in ints] then
-            break;
-        end if;
-    end while;
+    until IsPrime(p*O) and &and[d mod p ne 0 : d in denominators];
 
     Fp := FiniteField(p);
     P := PolynomialRing(Fp);
@@ -538,7 +537,7 @@ intrinsic IsElementOf(g::AlgMatElt, tf_gp::GrpSL2Gen, cosets::SetEnum[AlgMatElt]
     If it is, then return (w, s) where s is a coset representative and w is a word in the reduced set
     such that w*s evaluates to g. }
     for s in cosets do
-        b, word := IsElementOf(gs^-1, tf_gp);
+        b, word := IsElementOf(g*s^-1, tf_gp);
         if b then
             return true, word, s;
         end if;
