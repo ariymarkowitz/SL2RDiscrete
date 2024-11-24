@@ -135,8 +135,8 @@ evaluate_word := function(word_ids, seq)
  return &*[seq[i] : i in word_ids];
 end function;
 
-declare type GrpSL2Gen;
-declare attributes GrpSL2Gen:
+declare type GrpSL2RGen;
+declare attributes GrpSL2RGen:
     field, // Base field
     matalg, // Matrix Algebra
     place, // Real embedding
@@ -162,20 +162,20 @@ declare attributes GrpSL2Gen:
     witness,
     witness_word, // A word corresponding to each element of the witness
 
-    // These attributes are only defined if SL2Gen is determined to be discrete and torsion-free.
+    // These attributes are only defined if the group is determined to be discrete and torsion-free.
     FPgrp, // Finite presetation
     matgrp, // Matrix group (with reduced generating set)
     iso; // Isometry to finitely presented group
 
-intrinsic Print(gen::GrpSL2Gen)
+intrinsic Print(gen::GrpSL2RGen)
 { Print the generating set. }
 list := &*[Sprint(x) * (i lt #gen`seq select "\n\n" else "") : i -> x in gen`seq];
 printf "Generators of subgroup of %oSL(2,R):\n%o", gen`psl select "P" else "", list;
 end intrinsic;
 
-intrinsic SL2Gens(seq::SeqEnum[AlgMatElt[FldNum]], place::PlcNumElt : psl := false) -> GrpSL2Gen
+intrinsic SL2RGens(seq::SeqEnum[AlgMatElt[FldNum]], place::PlcNumElt : psl := false) -> GrpSL2RGen
 { Create a generating set for a subgroup of SL(2, R). }
-    gen := New(GrpSL2Gen);
+    gen := New(GrpSL2RGen);
     require IsReal(place): "Place must be real";
     require Degree(Universe(seq)) eq 2: "Matrix algebra must be degree 2";
     require &and[Determinant(g) eq 1 : g in seq]: "Matrices must have determinant 1";
@@ -332,7 +332,7 @@ reduce_step := procedure(gen)
     gen`witness_word[term_id] := evaluate_word(word, words_sym);
 end procedure;
 
-intrinsic RecognizeDiscreteTorsionFree(gen::GrpSL2Gen)
+intrinsic RecognizeDiscreteTorsionFree(gen::GrpSL2RGen)
 { Decide if a generating set of SL(2, R) is discrete and torsion-free. }
     repeat
         reduce_step(gen);
@@ -353,25 +353,25 @@ intrinsic RecognizeDiscreteTorsionFree(gen::GrpSL2Gen)
     end if;
 end intrinsic;
 
-intrinsic IsDiscreteTorsionFree(gen::GrpSL2Gen) -> BoolElt
+intrinsic IsDiscreteTorsionFree(gen::GrpSL2RGen) -> BoolElt
 { Return true if the generating set is discrete and torsion-free. }
     error if gen`type eq "un", "The group type is unknown; prepare it using `RecognizeDiscreteTorsionFree`";
     return gen`type eq "dc" or gen`type eq "df";
 end intrinsic;
 
-intrinsic IsDiscreteFree(gen::GrpSL2Gen) -> BoolElt
+intrinsic IsDiscreteFree(gen::GrpSL2RGen) -> BoolElt
 { Return true if the generating set is discrete and free. }
     error if gen`type eq "un", "The group type is unknown; prepare it using `RecognizeDiscreteTorsionFree`";
     return gen`type eq "df";
 end intrinsic;
 
-intrinsic IsDiscreteCocompact(gen::GrpSL2Gen) -> BoolElt
+intrinsic IsDiscreteCocompact(gen::GrpSL2RGen) -> BoolElt
 { Return true if the generating set is discrete with cocompact action. }
     error if gen`type eq "un", "The group type is unknown; prepare it using `RecognizeDiscreteTorsionFree`";
     return gen`type eq "dc";
 end intrinsic;
 
-intrinsic IsElementOf(g::AlgMatElt, gen::GrpSL2Gen) -> BoolElt, GrpFPElt
+intrinsic IsElementOf(g::AlgMatElt, gen::GrpSL2RGen) -> BoolElt, GrpFPElt
 { Decide whether g is an element of the group, returning the word in the reduced set evaluating to g. }
     error if gen`type eq "un", "The group must be prepared using `RecognizeDiscreteTorsionFree`";
     error if not IsDiscreteTorsionFree(gen), "The group is not discrete and torsion-free";
@@ -402,7 +402,7 @@ intrinsic IsElementOf(g::AlgMatElt, gen::GrpSL2Gen) -> BoolElt, GrpFPElt
     end if;
 end intrinsic;
 
-intrinsic MapToFundamentalDomain(z::Tup, gen::GrpSL2Gen) -> AlgMatElt, GrpFPElt
+intrinsic MapToFundamentalDomain(z::Tup, gen::GrpSL2RGen) -> AlgMatElt, GrpFPElt
 { Return g (and corresponding word w) such that gz is in the fundamental domain.
 Two points in the same orbit will be mapped to the same orbit representative. }
     error if gen`type eq "un", "The group must be prepared using `RecognizeDiscreteTorsionFree`";
@@ -432,12 +432,12 @@ Two points in the same orbit will be mapped to the same orbit representative. }
     return g, g_word;
 end intrinsic;
 
-intrinsic Generators(gen::GrpSL2Gen) -> SeqEnum[AlgMatElt]
+intrinsic Generators(gen::GrpSL2RGen) -> SeqEnum[AlgMatElt]
 { Return the original generating set. }
     return gen`seq;
 end intrinsic;
 
-intrinsic ReducedGenerators(gen::GrpSL2Gen) -> SeqEnum[AlgMatElt]
+intrinsic ReducedGenerators(gen::GrpSL2RGen) -> SeqEnum[AlgMatElt]
 { Return a reduced generating set for a discrete torsion-free group. }
     error if gen`type eq "un", "The group must be prepared using `RecognizeDiscreteTorsionFree`";
     error if not IsDiscreteTorsionFree(gen), "The group is not discrete and torsion-free";
@@ -448,12 +448,12 @@ intrinsic ReducedGenerators(gen::GrpSL2Gen) -> SeqEnum[AlgMatElt]
     end if;
 end intrinsic;
 
-intrinsic BaseField(gen::GrpSL2Gen) -> FldNum
+intrinsic BaseField(gen::GrpSL2RGen) -> FldNum
 { Return the base field of the group. }
     return gen`field;
 end intrinsic;
 
-intrinsic HasNegativeOne(gen::GrpSL2Gen) -> FldNum, GrpFPElt
+intrinsic HasNegativeOne(gen::GrpSL2RGen) -> FldNum, GrpFPElt
 { Return true if the subgroup of SL(2, R) has -I. }
     error if gen`type eq "un", "The group must be prepared using `RecognizeDiscreteTorsionFree`";
     error if gen`psl, "The group must be a subgroup of SL(2, R)";
@@ -464,7 +464,7 @@ intrinsic HasNegativeOne(gen::GrpSL2Gen) -> FldNum, GrpFPElt
     end if;
 end intrinsic;
 
-intrinsic Rank(gen::GrpSL2Gen) -> RngIntElt
+intrinsic Rank(gen::GrpSL2RGen) -> RngIntElt
 { The rank of a discrete torsion-free group. }
     error if gen`type eq "un", "The group must be prepared using `RecognizeDiscreteTorsionFree`";
     error if not IsDiscreteTorsionFree(gen), "The group is not discrete and torsion-free";
@@ -473,7 +473,7 @@ end intrinsic
 
 /* DISCRETENESS TEST */
 
-intrinsic TorsionFreeSubgroup(gen::GrpSL2Gen) -> GrpSL2Gen, SetEnum[AlgMatElt], RngIntElt
+intrinsic TorsionFreeSubgroup(gen::GrpSL2RGen) -> GrpSL2RGen, SetEnum[AlgMatElt], RngIntElt
 { Find a generating set for a torsion-free congruence subgroup. }
     F := gen`field;
     K<w> := SimpleExtension(sub<gen`field | [x : x in Eltseq(m), m in Generators(gen)]>);
@@ -517,10 +517,10 @@ intrinsic TorsionFreeSubgroup(gen::GrpSL2Gen) -> GrpSL2Gen, SetEnum[AlgMatElt], 
     S := {hrepr(h) : h in H};
     new_seq := {Matrix(x*s*grepr((x*s)^-1)) : s in S, x in Generators(G)};
     
-    return SL2Gens(Setseq(new_seq), gen`place), {Matrix(s) : s in S}, p;
+    return SL2RGens(Setseq(new_seq), gen`place), {Matrix(s) : s in S}, p;
 end intrinsic;
 
-intrinsic IsDiscrete(gen::GrpSL2Gen) -> BoolElt, GrpSL2Gen, SetEnum[AlgMatElt], RngIntElt
+intrinsic IsDiscrete(gen::GrpSL2RGen) -> BoolElt, GrpSL2RGen, SetEnum[AlgMatElt], RngIntElt
 { Decide whether a subgroup of SL(2, R) or PSL(2, R) is discrete, returning a finite index subgroup and set of coset representatives if so. }
     H, S, p := TorsionFreeSubgroup(gen);
     RecognizeDiscreteTorsionFree(H);
@@ -531,7 +531,7 @@ intrinsic IsDiscrete(gen::GrpSL2Gen) -> BoolElt, GrpSL2Gen, SetEnum[AlgMatElt], 
     end if;
 end intrinsic;
 
-intrinsic IsElementOf(g::AlgMatElt, tf_gp::GrpSL2Gen, cosets::SetEnum[AlgMatElt]) -> BoolElt, GrpFPElt, AlgMatElt
+intrinsic IsElementOf(g::AlgMatElt, tf_gp::GrpSL2RGen, cosets::SetEnum[AlgMatElt]) -> BoolElt, GrpFPElt, AlgMatElt
 { Decide whether g is an element of a subgroup of SL(2, R) or PSL(2, R),
     given a torsion-free discrete subgroup and a set of coset representatives.
     If it is, then return (w, s) where s is a coset representative and w is a word in the reduced set

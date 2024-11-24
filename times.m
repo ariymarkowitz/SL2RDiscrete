@@ -67,7 +67,7 @@ end function;
 
 // Time discrete-torsion-free recognition
 params := [<7, 2>, <15, 5>, <20, 10>, <27, 20>];
-tests := [[SL2Gens(random_gens(K, 10, p[1], p[2]), P) : i in [1..1000]] : p in params];
+tests := [[SL2RGens(random_gens(K, 10, p[1], p[2]), P) : i in [1..1000]] : p in params];
 
 results1 := [time_ngens(G) : G in tests];
 
@@ -87,7 +87,7 @@ A := M![2-t, t-1, 2-2*t, t-2];
 B := M![t-1, 1, t-2, 1];
 C := M![t, 1, -1, 0];
 P := RealPlaces(K)[1];
-G := SL2Gens([A, B, C], P);
+G := SL2RGens([A, B, C], P);
 time b, H, S, p := IsDiscrete(G);
 
 x := K!Random(Integers(K), 1000);
