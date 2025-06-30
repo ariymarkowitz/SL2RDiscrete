@@ -488,12 +488,6 @@ intrinsic TorsionFreeSubgroup(gen::GrpSL2RGen) -> GrpSL2RGen, SetEnum[AlgMatElt]
     denominators := [x : x in denominators | x ne 1];
 
     O := Integers(K);
-    b1, n1 := NormEquation(Integers(K), 1);
-    b2, n2 := NormEquation(Integers(K), 2);
-    n := (b1 select n1 else []) cat (b2 select n2 else []);
-    U, Umap := TorsionUnitGroup(K);
-    ints := [x*Umap(u) : x in n, u in U | x ne 1];
-
     p := 2;
     repeat
         p := NextPrime(p);
