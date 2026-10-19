@@ -26,6 +26,22 @@ A := M![1, w, 0, 1];
 B := M![1, 1, 0, 1];
 assert not abelian_is_cyclic(A, B);
 
+// Parabolic elements with trace -2: in PSL(2, R), A is translation by -2 and B is translation by 3,
+// so they generate translation by 1.
+A := M![-1, 2, 0, -1];
+B := M![1, 3, 0, 1];
+b, m, n := abelian_is_cyclic(A, B);
+assert b;
+_, x, y := ExtendedGreatestCommonDivisor(m, n);
+units := {M![1, 1, 0, 1], M![1, -1, 0, 1], M![-1, 1, 0, -1], M![-1, -1, 0, -1]};
+assert A^x * B^y in units;
+
+gen := SL2RGens([A, B], P);
+RecognizeDiscreteTorsionFree(gen);
+assert IsDiscreteFree(gen);
+assert HasNegativeOne(gen);
+assert gen`witness[1] in units;
+
 // Reduction steps 1
 
 A := M![1, 2, 0, 1];
@@ -90,6 +106,19 @@ reduce_step(gen);
 assert gen`type eq "un" and gen`witness eq [A^-1, B];
 F := Universe(gen`witness_word);
 assert gen`witness_word eq [F.2^-1 * F.1^-1 * F.2, F.2];
+
+// Membership needs the inverses of the short rightmost words, i.e. the short leftmost words.
+gen := SL2RGens([A, B], P);
+RecognizeDiscreteTorsionFree(gen);
+F := gen`FPgrp;
+b, word := IsElementOf(A^-1*B*A*B^-1, gen);
+assert b and word eq F.1^-1 * F.2 * F.1 * F.2^-1;
+
+z := <K!2, K!1>;
+hz := apply_mobius(z, A*B^-1);
+g1 := MapToFundamentalDomain(z, gen);
+g2 := MapToFundamentalDomain(hz, gen);
+assert apply_mobius(z, g1) eq apply_mobius(hz, g2);
 
 // Reduction 2
 
@@ -170,3 +199,27 @@ assert IsDiscreteTorsionFree(gen);
 assert HasNegativeOne(gen);
 assert Rank(gen) eq 3;
 assert ReducedGenerators(gen)[Rank(gen)] eq -One(M);
+
+// Torsion-free subgroup
+
+Q := Rationals();
+R<x> := PolynomialRing(Q);
+K<w> := NumberField(x^2 - 2);
+M := MatrixAlgebra(K, 2);
+P := RealPlaces(K)[1];
+
+// A punctured torus group (free of rank 2) whose image modulo 3 is the quaternion group of order 8,
+// conjugated so that its entries generate K.
+D := M![1, w, 0, 1];
+A := D * M![3, -1, 1, 0] * D^-1;
+B := D * M![1, 1, 1, 2] * D^-1;
+gen := SL2RGens([A, B], P);
+b, H, S, p := IsDiscrete(gen);
+assert b and p eq 3 and #S eq 8;
+// The Schreier generators must generate the whole kernel, which has index 8 in a free group of rank 2,
+// so it is free of rank 9.
+assert Rank(H) eq 9;
+for g in [A, B, A*B, A^-1*B^2*A, B*A^-1*B^-1*A] do
+    assert IsElementOf(g, H, S);
+end for;
+assert not IsElementOf(M![2, 0, 0, 1/2], H, S);

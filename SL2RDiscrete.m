@@ -102,12 +102,14 @@ abelian_is_cyclic := function(g, h)
         proj := f1*f2*f3;
         return true, Eltseq(proj(g))[1], Eltseq(proj(h))[1];
     else
-        // G is unipotent (up to sign), so isomorphic to the additive group via the top-right entry of the upper
-        // triangularisation.
+        // G is unipotent (up to sign), so its image in PSL(2, R) is isomorphic to the additive group via
+        // the ratio of the top-right and top-left entries of the upper triangularisation.
+        // (Taking the ratio accounts for elements with trace -2.)
 
         m, T := JordanForm(g);
         assert m[1,2] eq 1;
-        r := (T*h*T^-1)[1,2];
+        hm := T*h*T^-1;
+        r := (hm[1,2]/hm[1,1]) / (m[1,2]/m[1,1]);
 
         Q := RationalField();
         if r in Q then
@@ -128,6 +130,17 @@ end function;
 short_words := function(gens_pm, invert_perm, place)
     bounding_perm := bounding_path_perm(gens_pm, invert_perm, place);
     return &cat [initial_segments(Setseq(Cycle(bounding_perm, i))) : i in [1..#gens_pm]];
+end function;
+
+/**
+ * Get a list of all short words, i.e. the short rightmost words and their inverses (the short leftmost words).
+ * The recognition algorithm only needs short_words, since the properties it tests are invariant under inversion,
+ * but the membership algorithms need both.
+ */
+short_words_sym := function(gens_pm, invert_perm, place)
+    words := short_words(gens_pm, invert_perm, place);
+    inverses := [Reverse([t^invert_perm : t in word]) : word in words];
+    return words cat [word : word in inverses | word notin words];
 end function;
 
 /* Evaluate a word (as a list of ids) with a generating set. */
@@ -380,9 +393,10 @@ intrinsic IsElementOf(g::AlgMatElt, gen::GrpSL2RGen) -> BoolElt, GrpFPElt
     G := gen`FPgrp;
     fp_sym := symmetrize(Setseq(Generators(G)));
     g_word := Id(G);
+    words := short_words_sym(gen_sym, inv, gen`place);
     repeat
         finish := true;
-        for word in short_words(gen_sym, inv, gen`place) do
+        for word in words do
             elt := evaluate_word(word, gen_sym);
             h := g*elt;
             if comp_alg(length_proxy(h), length_proxy(g), gen`place) lt 0 then
@@ -414,9 +428,10 @@ Two points in the same orbit will be mapped to the same orbit representative. }
     g := One(gen`matalg);
     g_word := Id(G);
     w := z;
+    words := short_words_sym(gen_sym, inv, gen`place);
     repeat
         finish := true;
-        for word in short_words(gen_sym, inv, gen`place) do
+        for word in words do
             elt := evaluate_word(word, gen_sym);
             w2 := apply_mobius(w, elt);
             cmp := comp_alg(dist_proxy(w2), dist_proxy(w), gen`place);
@@ -509,7 +524,8 @@ intrinsic TorsionFreeSubgroup(gen::GrpSL2RGen) -> GrpSL2RGen, SetEnum[AlgMatElt]
     grepr := map<G -> G | x :-> hrepr(mquot(x))>;
 
     S := {hrepr(h) : h in H};
-    new_seq := {Matrix(x*s*grepr((x*s)^-1)) : s in S, x in Generators(G)};
+    // Schreier generators of the kernel: (rep of xs)^-1 * x * s.
+    new_seq := {Matrix(grepr(x*s)^-1*x*s) : s in S, x in Generators(G)};
     
     return SL2RGens(Setseq(new_seq), gen`place), {Matrix(s) : s in S}, p;
 end intrinsic;
